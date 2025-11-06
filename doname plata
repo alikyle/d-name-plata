@@ -1,0 +1,40 @@
+// server.js
+const express = require('express');
+const fs = require('fs');
+const path = require('path');
+const bodyParser = require('body-parser');
+const cors = require('cors');
+
+const app = express();
+app.use(cors());
+app.use(bodyParser.json());
+
+const DATA_FILE = path.join(__dirname, 'donations.json');
+
+function readData(){
+  if (!fs.existsSync(DATA_FILE)) return [];
+  try {
+    return JSON.parse(fs.readFileSync(DATA_FILE,'utf8') || '[]');
+  } catch(e) { return []; }
+}
+function writeData(list){
+  fs.writeFileSync(DATA_FILE, JSON.stringify(list, null, 2), 'utf8');
+}
+
+app.post('/donate', (req,res) => {
+  const { name, amount, message, date } = req.body || {};
+  if (!amount || Number(amount) <= 0) return res.status(400).json({ error: 'Cantidad inválida' });
+  const entry = { id: Date.now(), name: name || 'Anon', amount: Number(amount), message: message||'', date: date || new Date().toISOString() };
+  const list = readData();
+  list.push(entry);
+  writeData(list);
+  return res.json({ ok: true, entry });
+});
+
+app.get('/donations', (req,res) => {
+  const list = readData();
+  res.json(list);
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, ()=> console.log('Server listening on', PORT));
